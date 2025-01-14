@@ -1,0 +1,11 @@
+FROM python:3.11
+
+# Install some basic tools
+RUN apt-get update && apt-get install -y bsdmainutils
+RUN pip install --no-cache-dir atheris coverage
+
+# 设置工作目录
+WORKDIR /home/atheris/
+
+# 设置默认命令
+CMD ["bash"]
