@@ -30,8 +30,14 @@ uint16_t FastByteToHex(unsigned char byte) {
 
 }  // namespace
 
+// 从数据提供者中消费一定数量的字节，并将其转换为Unicode字符串
+// count：要消费的字节数。
+// filter_surrogates：是否过滤代理对（surrogates）。
 py::object FuzzedDataProvider::ConsumeUnicodeImpl(size_t count,
                                                   bool filter_surrogates) {
+
+  // 如果count为0或剩余字节数为0，返回一个空的Unicode字符串。
+  // 如果剩余字节数为1，消费一个字节并返回一个空的Unicode字符串。
   if (count == 0) return UnicodeFromKindAndData(1, nullptr, 0);
   if (remaining_bytes_ == 0) return UnicodeFromKindAndData(1, nullptr, 0);
 
@@ -40,8 +46,16 @@ py::object FuzzedDataProvider::ConsumeUnicodeImpl(size_t count,
     return UnicodeFromKindAndData(1, nullptr, 0);
   }
 
+  //读取一个字节作为字符串规格string_spec，并前进一个字节。
   uint8_t string_spec = *data_ptr_;
   Advance(1);
+
+
+  // 如果string_spec的最低位为1，生成一个纯ASCII字符串：
+  // 计算要消费的字节数bytes。
+  // 从数据指针data_ptr_中读取bytes个字节，并将其转换为字符串buf。
+  // 将字符串中的每个字符的最高位清零，以确保是ASCII字符。
+  // 调用UnicodeFromKindAndData函数将字符串转换为Unicode对象并返回。
 
   // 50% of the time, make a pure ASCII string. If we didn't do this, it would
   // be unlikely for libFuzzer to produce an ASCII string, so any API that
@@ -56,6 +70,14 @@ py::object FuzzedDataProvider::ConsumeUnicodeImpl(size_t count,
     Advance(bytes);
     return ret;
   }
+
+
+  // 如果string_spec的次低位为1，生成一个UTF-16兼容字符串：
+  // 计算要消费的字节数bytes。
+  // 确保字节数为偶数even_bytes。
+  // 从数据指针data_ptr_中读取even_bytes个字节，并将其转换为uint16_t类型的向量buf。
+  // 如果需要过滤代理对，调整buf中的代理对值。
+  // 调用UnicodeFromKindAndData函数将字符串转换为Unicode对象并返回。
 
   if (string_spec & 2) {
     // Otherwise, 50% chance of utf-16-compatible string
@@ -76,6 +98,14 @@ py::object FuzzedDataProvider::ConsumeUnicodeImpl(size_t count,
     Advance(bytes);
     return ret;
   } else {
+    // 否则，生成21位Unicode字符：
+    // 计算要消费的字节数bytes。
+    // 确保字节数为4的倍数group_bytes。
+    // 从数据指针data_ptr_中读取group_bytes个字节，并将其转换为uint32_t类型的向量buf。
+    // 将每个字符限制为21位，并处理超出范围的字符。
+    // 如果需要过滤代理对，调整buf中的代理对值。
+    // 调用UnicodeFromKindAndData函数将字符串转换为Unicode对象并返回。
+
     // Otherwise, full 21-bitish Unicode characters, encoded into 32-bit chunks.
     size_t bytes = std::min(count * 4, remaining_bytes_);
     size_t group_bytes = bytes & ~3ULL;
